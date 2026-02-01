@@ -1,0 +1,25 @@
+{
+  "name": "@rwa-darkpool/matching-engine",
+  "version": "1.0.0",
+  "description": "Off-chain matching engine for RWA Dark Pool",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^13.0.0",
+    "@rwa-darkpool/prover": "file:../prover",
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "vitest": "^1.0.0"
+  }
+}
