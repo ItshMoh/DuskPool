@@ -2,6 +2,30 @@
 
 Soroban smart contracts for the RWA Dark Pool.
 
+## Architecture
+
+The contracts work together to enable private trading with ZK proof verification. See [diagrams/02-contract-architecture.excalidraw.json](../diagrams/02-contract-architecture.excalidraw.json) for visual representation.
+
+```
+┌──────────────┐         ┌──────────────┐
+│   Registry   │         │  Orderbook   │
+│ (whitelist)  │         │ (commitments)│
+└──────┬───────┘         └──────┬───────┘
+       │                        │
+       │ whitelist root         │ match info
+       v                        v
+┌─────────────────────────────────────────┐
+│              Settlement                  │
+│   (escrow, verification key, nullifiers)│
+└────────────────────┬────────────────────┘
+                     │ verify_proof()
+                     v
+┌─────────────────────────────────────────┐
+│           Groth16 Verifier              │
+│         (X-Ray Protocol BN254)          │
+└─────────────────────────────────────────┘
+```
+
 ## Building
 
 From the project root:
