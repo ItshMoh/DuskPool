@@ -1,32 +1,183 @@
-import React, { useState } from 'react';
-import { Search, Filter } from 'lucide-react';
-import type { Order, Settlement } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Filter, RefreshCw } from 'lucide-react';
+import { useWallet } from '../hooks/useWallet';
+import { useOrderbook } from '../hooks/useOrderbook';
+import { useSettlement } from '../hooks/useSettlement';
+import { useRegistry } from '../hooks/useRegistry';
+import type { MatchRecord } from '../contracts/orderbook';
+import type { SettlementRecord } from '../contracts/settlement';
+import {
+  StatusBadge, SideBadge,
+  SearchInput, IconButton, Button,
+  Card,
+  Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableCell,
+  ControlledTabs,
+  PageHeader,
+  LoadingState, EmptyState,
+} from './ui';
+
+// Display interfaces
+interface OrderDisplay {
+  id: string;
+  asset: string;
+  side: 'buy' | 'sell';
+  amount: number;
+  price: number;
+  filled: number;
+  status: 'open' | 'partial' | 'filled' | 'cancelled';
+  timestamp: string;
+  hash: string;
+}
+
+interface SettlementDisplay {
+  id: string;
+  asset: string;
+  side: 'buy' | 'sell';
+  amount: number;
+  price: number;
+  timestamp: string;
+  txHash: string;
+}
+
+// Format bigint amount (7 decimals)
+const formatAmount = (amount: bigint): number => {
+  return Number(amount) / 10_000_000;
+};
+
+// Format timestamp from u64
+const formatTimestamp = (timestamp: bigint): string => {
+  const date = new Date(Number(timestamp) * 1000);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// Format buffer to hex string
+const bufferToHex = (buffer: Buffer): string => {
+  const hex = buffer.toString('hex');
+  return `0x${hex.slice(0, 4)}...${hex.slice(-4)}`;
+};
 
 const History: React.FC = () => {
+  const { address, isConnected } = useWallet();
+  const { getMatches } = useOrderbook();
+  const { getSettlements } = useSettlement();
+  const { getActiveAssets } = useRegistry();
+
   const [activeTab, setActiveTab] = useState<'orders' | 'settlements'>('orders');
+  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders] = useState<OrderDisplay[]>([]);
+  const [settlements, setSettlements] = useState<SettlementDisplay[]>([]);
+  const [assetSymbols, setAssetSymbols] = useState<Record<string, string>>({});
 
-  // Mock Orders
-  const orders: Order[] = [
-    { id: 'ord_1', asset: 'TBILL', side: 'buy', amount: 50000, price: 98.40, filled: 0, status: 'open', timestamp: '2023-10-25 14:02', hash: '0x7f...3a' },
-    { id: 'ord_2', asset: 'PAXG', side: 'sell', amount: 10, price: 2045.50, filled: 2, status: 'partial', timestamp: '2023-10-25 10:15', hash: '0x2b...9c' },
-    { id: 'ord_3', asset: 'USDC', side: 'sell', amount: 10000, price: 1.00, filled: 10000, status: 'filled', timestamp: '2023-10-24 09:30', hash: '0x1c...4d' },
-    { id: 'ord_4', asset: 'TBILL', side: 'buy', amount: 25000, price: 98.35, filled: 0, status: 'cancelled', timestamp: '2023-10-23 16:45', hash: '0x8e...1f' },
-  ];
-
-  // Mock Settlements
-  const settlements: Settlement[] = [
-    { id: 'set_1', asset: 'USDC', side: 'sell', amount: 10000, price: 1.00, timestamp: '2023-10-24 09:35', txHash: '0xabcd...ef12' },
-    { id: 'set_2', asset: 'PAXG', side: 'sell', amount: 2, price: 2042.00, timestamp: '2023-10-25 11:20', txHash: '0xbcde...f023' },
-  ];
-
-  const StatusBadge = ({ status }: { status: Order['status'] }) => {
-    switch (status) {
-      case 'open': return <span className="bg-blue-500/20 text-blue-400 px-2 py-1 text-[10px] uppercase font-bold border border-blue-500/30">Open</span>;
-      case 'partial': return <span className="bg-yellow-500/20 text-yellow-400 px-2 py-1 text-[10px] uppercase font-bold border border-yellow-500/30">Partial</span>;
-      case 'filled': return <span className="bg-green-500/20 text-green-400 px-2 py-1 text-[10px] uppercase font-bold border border-green-500/30">Filled</span>;
-      case 'cancelled': return <span className="bg-gray-500/20 text-gray-400 px-2 py-1 text-[10px] uppercase font-bold border border-gray-500/30">Cancelled</span>;
+  // Load asset symbols for display
+  const loadAssetSymbols = useCallback(async () => {
+    try {
+      const assets = await getActiveAssets();
+      const symbols: Record<string, string> = {};
+      assets.forEach(asset => {
+        symbols[asset.token_address] = asset.symbol;
+      });
+      setAssetSymbols(symbols);
+    } catch (err) {
+      console.error('Failed to load asset symbols:', err);
     }
-  };
+  }, [getActiveAssets]);
+
+  // Load matches (orders) for current user
+  const loadOrders = useCallback(async () => {
+    if (!address) return;
+
+    try {
+      const allMatches = await getMatches();
+
+      // Filter matches where user is buyer or seller
+      const userMatches = allMatches.filter(
+        (match: MatchRecord) => match.buyer === address || match.seller === address
+      );
+
+      // Convert to display format
+      const orderData: OrderDisplay[] = userMatches.map((match: MatchRecord) => {
+        const isBuyer = match.buyer === address;
+        return {
+          id: bufferToHex(match.match_id),
+          asset: assetSymbols[match.asset_address] || match.asset_address.slice(0, 8),
+          side: isBuyer ? 'buy' : 'sell',
+          amount: formatAmount(match.quantity),
+          price: formatAmount(match.price),
+          filled: match.is_settled ? formatAmount(match.quantity) : 0,
+          status: match.is_settled ? 'filled' : 'partial',
+          timestamp: formatTimestamp(match.timestamp),
+          hash: isBuyer ? bufferToHex(match.buy_commitment) : bufferToHex(match.sell_commitment),
+        };
+      });
+
+      setOrders(orderData);
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+      setOrders([]);
+    }
+  }, [address, getMatches, assetSymbols]);
+
+  // Load settlements for current user
+  const loadSettlements = useCallback(async () => {
+    if (!address) return;
+
+    try {
+      const allSettlements = await getSettlements();
+
+      // Filter settlements where user is buyer or seller
+      const userSettlements = allSettlements.filter(
+        (settlement: SettlementRecord) => settlement.buyer === address || settlement.seller === address
+      );
+
+      // Convert to display format
+      const settlementData: SettlementDisplay[] = userSettlements.map((settlement: SettlementRecord) => {
+        const isBuyer = settlement.buyer === address;
+        return {
+          id: bufferToHex(settlement.match_id),
+          asset: assetSymbols[settlement.asset_address] || settlement.asset_address.slice(0, 8),
+          side: isBuyer ? 'buy' : 'sell',
+          amount: formatAmount(settlement.quantity),
+          price: formatAmount(settlement.price),
+          timestamp: formatTimestamp(settlement.timestamp),
+          txHash: bufferToHex(settlement.nullifier),
+        };
+      });
+
+      setSettlements(settlementData);
+    } catch (err) {
+      console.error('Failed to load settlements:', err);
+      setSettlements([]);
+    }
+  }, [address, getSettlements, assetSymbols]);
+
+  // Load all data
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    await loadAssetSymbols();
+    await Promise.all([loadOrders(), loadSettlements()]);
+    setIsLoading(false);
+  }, [loadAssetSymbols, loadOrders, loadSettlements]);
+
+  useEffect(() => {
+    if (isConnected) {
+      loadData();
+    } else {
+      setOrders([]);
+      setSettlements([]);
+      setIsLoading(false);
+    }
+  }, [isConnected, loadData]);
+
+  const tabs = [
+    { key: 'orders' as const, label: 'Orders' },
+    { key: 'settlements' as const, label: 'Settlements' },
+  ];
 
   return (
     <div className="w-full h-full px-6 md:px-12 py-4 animate-fade-in-up overflow-auto">
@@ -34,116 +185,128 @@ const History: React.FC = () => {
       <div className="max-w-7xl mx-auto">
 
         {/* Header Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-8 gap-4">
-           <div>
-              <h2 className="text-3xl font-condensed font-bold text-white uppercase mb-1">Trade History</h2>
-              <p className="text-gray-400 text-sm">Review your ZK-proof orders and on-chain settlements.</p>
-           </div>
-
-           <div className="flex bg-zinc-900/50 p-1 border border-white/10">
-              <button
-                 onClick={() => setActiveTab('orders')}
-                 className={`px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'orders' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
-              >
-                 Orders
-              </button>
-              <button
-                 onClick={() => setActiveTab('settlements')}
-                 className={`px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'settlements' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
-              >
-                 Settlements
-              </button>
-           </div>
-        </div>
+        <PageHeader
+          title="Trade History"
+          subtitle="Review your ZK-proof orders and on-chain settlements."
+          actions={
+            <>
+              <IconButton
+                icon={<RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />}
+                onClick={loadData}
+              />
+              <ControlledTabs
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                variant="pills"
+              />
+            </>
+          }
+        />
 
         {/* Filters Bar */}
-        <div className="glass-panel p-4 border border-white/5 mb-6 flex items-center gap-4">
-           <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input type="text" placeholder="Search Asset or ID..." className="w-full bg-black/40 border border-white/10 pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
+        <Card variant="glass" className="mb-6 flex items-center gap-4">
+           <div className="flex-1 max-w-xs">
+              <SearchInput placeholder="Search Asset or ID..." />
            </div>
-           <button className="flex items-center gap-2 px-4 py-2 bg-black/40 border border-white/10 text-sm text-gray-400 hover:text-white transition-colors">
+           <Button variant="secondary" size="md">
               <Filter className="w-4 h-4" /> Filter
-           </button>
-        </div>
+           </Button>
+        </Card>
 
         {/* Content Table */}
-        <div className="glass-panel border border-white/5 overflow-hidden">
-
-           {activeTab === 'orders' ? (
-              <table className="w-full text-left">
-                 <thead className="bg-white/5 border-b border-white/10">
-                    <tr>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Order ID / Hash</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Date</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Pair</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Side</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Price</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Amount</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Filled</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-center">Status</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Action</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-white/5">
-                    {orders.map((order) => (
-                       <tr key={order.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-6 py-4">
-                             <div className="font-mono text-xs text-white">#{order.id}</div>
-                             <div className="font-mono text-[10px] text-gray-600">Commit: {order.hash}</div>
-                          </td>
-                          <td className="px-6 py-4 text-xs text-gray-400 font-mono">{order.timestamp}</td>
-                          <td className="px-6 py-4 text-sm font-bold text-white">{order.asset}/USDC</td>
-                          <td className={`px-6 py-4 text-xs font-bold uppercase ${order.side === 'buy' ? 'text-green-500' : 'text-red-500'}`}>{order.side}</td>
-                          <td className="px-6 py-4 text-sm font-mono text-gray-300 text-right">${order.price.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-sm font-mono text-white text-right">{order.amount.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-sm font-mono text-gray-400 text-right">{order.filled.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-center"><StatusBadge status={order.status} /></td>
-                          <td className="px-6 py-4 text-right">
-                             {order.status === 'open' || order.status === 'partial' ? (
-                                <button className="text-xs text-red-500 hover:text-red-400 border border-red-500/30 hover:bg-red-500/10 px-3 py-1 transition-colors">Cancel</button>
-                             ) : (
-                                <span className="text-gray-600">-</span>
-                             )}
-                          </td>
-                       </tr>
-                    ))}
-                 </tbody>
-              </table>
+        <Card variant="glass" padding="none" className="overflow-hidden">
+           {isLoading ? (
+              <LoadingState message="Loading history..." />
+           ) : !isConnected ? (
+              <EmptyState title="Connect your wallet to view history" />
+           ) : activeTab === 'orders' ? (
+              orders.length === 0 ? (
+                <EmptyState
+                  title="No matched orders found"
+                  description="Orders will appear here once they are matched"
+                />
+              ) : (
+                <Table>
+                   <TableHeader>
+                      <tr>
+                         <TableHeaderCell>Order ID / Hash</TableHeaderCell>
+                         <TableHeaderCell>Date</TableHeaderCell>
+                         <TableHeaderCell>Pair</TableHeaderCell>
+                         <TableHeaderCell>Side</TableHeaderCell>
+                         <TableHeaderCell align="right">Price</TableHeaderCell>
+                         <TableHeaderCell align="right">Amount</TableHeaderCell>
+                         <TableHeaderCell align="right">Filled</TableHeaderCell>
+                         <TableHeaderCell align="center">Status</TableHeaderCell>
+                         <TableHeaderCell align="right">Action</TableHeaderCell>
+                      </tr>
+                   </TableHeader>
+                   <TableBody>
+                      {orders.map((order) => (
+                         <TableRow key={order.id}>
+                            <TableCell>
+                               <div className="font-mono text-xs text-white">#{order.id}</div>
+                               <div className="font-mono text-[10px] text-gray-600">Commit: {order.hash}</div>
+                            </TableCell>
+                            <TableCell mono className="text-xs text-gray-400">{order.timestamp}</TableCell>
+                            <TableCell className="text-sm font-bold text-white">{order.asset}/USDC</TableCell>
+                            <TableCell><SideBadge side={order.side} /></TableCell>
+                            <TableCell align="right" mono className="text-sm text-gray-300">${order.price.toFixed(2)}</TableCell>
+                            <TableCell align="right" mono className="text-sm text-white">{order.amount.toLocaleString()}</TableCell>
+                            <TableCell align="right" mono className="text-sm text-gray-400">{order.filled.toLocaleString()}</TableCell>
+                            <TableCell align="center"><StatusBadge status={order.status} /></TableCell>
+                            <TableCell align="right">
+                               {order.status === 'open' || order.status === 'partial' ? (
+                                  <Button variant="danger" size="sm">Cancel</Button>
+                               ) : (
+                                  <span className="text-gray-600">-</span>
+                               )}
+                            </TableCell>
+                         </TableRow>
+                      ))}
+                   </TableBody>
+                </Table>
+              )
            ) : (
-              <table className="w-full text-left">
-                 <thead className="bg-white/5 border-b border-white/10">
-                    <tr>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Settlement ID</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Time</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Pair</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Side</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Price</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Amount</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Total Value</th>
-                       <th className="px-6 py-4 text-[10px] text-gray-500 uppercase font-bold tracking-wider text-right">Tx Hash</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-white/5">
-                    {settlements.map((set) => (
-                       <tr key={set.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-6 py-4 font-mono text-xs text-white">#{set.id}</td>
-                          <td className="px-6 py-4 text-xs text-gray-400 font-mono">{set.timestamp}</td>
-                          <td className="px-6 py-4 text-sm font-bold text-white">{set.asset}/USDC</td>
-                          <td className={`px-6 py-4 text-xs font-bold uppercase ${set.side === 'buy' ? 'text-green-500' : 'text-red-500'}`}>{set.side}</td>
-                          <td className="px-6 py-4 text-sm font-mono text-gray-300 text-right">${set.price.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-sm font-mono text-white text-right">{set.amount.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-sm font-mono text-white text-right">${(set.amount * set.price).toLocaleString()}</td>
-                          <td className="px-6 py-4 text-right">
-                             <a href="#" className="text-xs text-brand-stellar hover:underline font-mono">{set.txHash}</a>
-                          </td>
-                       </tr>
-                    ))}
-                 </tbody>
-              </table>
+              settlements.length === 0 ? (
+                <EmptyState
+                  title="No settlements found"
+                  description="Completed trades will appear here"
+                />
+              ) : (
+                <Table>
+                   <TableHeader>
+                      <tr>
+                         <TableHeaderCell>Settlement ID</TableHeaderCell>
+                         <TableHeaderCell>Time</TableHeaderCell>
+                         <TableHeaderCell>Pair</TableHeaderCell>
+                         <TableHeaderCell>Side</TableHeaderCell>
+                         <TableHeaderCell align="right">Price</TableHeaderCell>
+                         <TableHeaderCell align="right">Amount</TableHeaderCell>
+                         <TableHeaderCell align="right">Total Value</TableHeaderCell>
+                         <TableHeaderCell align="right">Tx Hash</TableHeaderCell>
+                      </tr>
+                   </TableHeader>
+                   <TableBody>
+                      {settlements.map((set) => (
+                         <TableRow key={set.id}>
+                            <TableCell mono className="text-xs text-white">#{set.id}</TableCell>
+                            <TableCell mono className="text-xs text-gray-400">{set.timestamp}</TableCell>
+                            <TableCell className="text-sm font-bold text-white">{set.asset}/USDC</TableCell>
+                            <TableCell><SideBadge side={set.side} /></TableCell>
+                            <TableCell align="right" mono className="text-sm text-gray-300">${set.price.toFixed(2)}</TableCell>
+                            <TableCell align="right" mono className="text-sm text-white">{set.amount.toLocaleString()}</TableCell>
+                            <TableCell align="right" mono className="text-sm text-white">${(set.amount * set.price).toLocaleString()}</TableCell>
+                            <TableCell align="right">
+                               <a href="#" className="text-xs text-brand-stellar hover:underline font-mono">{set.txHash}</a>
+                            </TableCell>
+                         </TableRow>
+                      ))}
+                   </TableBody>
+                </Table>
+              )
            )}
-
-        </div>
+        </Card>
 
       </div>
     </div>

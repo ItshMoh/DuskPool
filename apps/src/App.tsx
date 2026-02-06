@@ -10,10 +10,12 @@ import Markets from './components/Markets';
 import BackgroundEffects from './components/BackgroundEffects';
 import Sidebar from './components/Sidebar';
 import HUDFrame from './components/HUDFrame';
+import NotFound from './components/NotFound';
+import { useWallet } from './hooks/useWallet';
 
 const App: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const { isConnected } = useWallet();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -24,15 +26,12 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleConnect = () => {
-    setIsConnected(true);
-    navigate('/dashboard');
-  };
-
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    navigate('/');
-  };
+  // Navigate to dashboard when connected
+  useEffect(() => {
+    if (isConnected && currentPath === '/') {
+      navigate('/dashboard');
+    }
+  }, [isConnected, currentPath, navigate]);
 
   // Determine if we're on the home page
   const isHomePage = currentPath === '/';
@@ -43,12 +42,7 @@ const App: React.FC = () => {
 
       <HUDFrame />
       <div className={`h-full transition-opacity duration-1000 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-        <Header
-          currentPath={currentPath}
-          isConnected={isConnected}
-          onConnect={handleConnect}
-          onDisconnect={handleDisconnect}
-        />
+        <Header currentPath={currentPath} />
 
         {/* Show Sidebar on all pages except home */}
         {!isHomePage && (
@@ -58,7 +52,7 @@ const App: React.FC = () => {
           />
         )}
 
-        <main id="main-scroll-container" className={`relative z-10 w-full h-full flex flex-col pt-14 overflow-auto ${!isHomePage ? 'ml-20' : ''}`}>
+        <main id="main-scroll-container" className={`relative z-10 h-full flex flex-col pt-14 overflow-auto ${!isHomePage ? 'ml-20 w-[calc(100%-5rem)]' : 'w-full'}`}>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
@@ -69,6 +63,9 @@ const App: React.FC = () => {
             <Route path="/escrow" element={<Escrow />} />
             <Route path="/history" element={<History />} />
             <Route path="/markets" element={<Markets />} />
+
+            {/* 404 Page */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
       </div>

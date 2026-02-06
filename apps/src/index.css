@@ -36,6 +36,34 @@
   animation: fade-in-up 0.6s ease-out;
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shrink-width {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-shrink-width {
+  animation: shrink-width linear forwards;
+}
+
 /* Font families */
 .font-condensed {
   font-family: 'Oswald', 'Impact', 'Arial Narrow', sans-serif;

@@ -1,20 +1,31 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Bell, Maximize2, Menu, LogOut } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, Bell, Maximize2, Menu, LogOut, Loader2, Wallet, User } from 'lucide-react';
+import { useWallet } from '../hooks/useWallet';
 
 interface HeaderProps {
   currentPath?: string;
-  isConnected?: boolean;
-  onConnect?: () => void;
-  onDisconnect?: () => void;
+}
+
+function truncateAddress(address: string): string {
+  if (address.length <= 12) return address;
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
+function formatBalance(balance: string): string {
+  const num = parseFloat(balance);
+  if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(2)}K`;
+  return num.toFixed(2);
 }
 
 const Header: React.FC<HeaderProps> = ({
   currentPath = '/',
-  isConnected = false,
-  onConnect,
-  onDisconnect
 }) => {
+  const { address, balances, isConnected, isPending, connect, disconnect } = useWallet();
+  const navigate = useNavigate();
+
+  const xlmBalance = balances.find(b => b.asset === 'XLM');
 
   const publicNavItems = [
     { label: 'MARKETS', id: 'markets' },
@@ -30,6 +41,15 @@ const Header: React.FC<HeaderProps> = ({
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleConnect = async () => {
+    await connect();
+  };
+
+  const handleDisconnect = async () => {
+    await disconnect();
+    navigate('/');
   };
 
   return (
@@ -66,21 +86,45 @@ const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-4">
           <div className="w-24 h-[1px] bg-white/20 hidden md:block"></div>
 
-          {!isConnected ? (
+          {isPending ? (
             <button
-              onClick={onConnect}
+              disabled
+              className="hidden md:flex items-center gap-2 px-6 py-2 border border-white/20 text-[11px] font-medium tracking-widest text-white/50"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              CONNECTING
+            </button>
+          ) : !isConnected ? (
+            <button
+              onClick={handleConnect}
               className="hidden md:flex items-center gap-2 px-6 py-2 border border-white/20 hover:border-white/40 transition-colors text-[11px] font-medium tracking-widest text-white"
             >
               CONNECT
             </button>
           ) : (
-            <button
-              onClick={onDisconnect}
-              className="hidden md:flex items-center gap-2 px-4 py-2 border border-brand-stellar/30 hover:border-red-500/50 transition-colors"
-            >
-              <span className="text-[10px] font-mono text-white">0x71...3A92</span>
-              <LogOut className="w-3 h-3 text-white/60" />
-            </button>
+            <>
+              {/* Balance Button */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-2 border border-brand-stellar/30 bg-brand-stellar/5">
+                <Wallet className="w-3.5 h-3.5 text-brand-stellar" />
+                <span className="text-[11px] font-mono text-brand-stellar font-medium">
+                  {xlmBalance ? `${formatBalance(xlmBalance.balance)} XLM` : '0.00 XLM'}
+                </span>
+              </div>
+
+              {/* Address/Avatar Button */}
+              <button
+                onClick={handleDisconnect}
+                className="hidden md:flex items-center gap-2 px-3 py-2 border border-white/20 hover:border-red-500/40 transition-colors group"
+              >
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-brand-stellar/60 to-purple-500/60 flex items-center justify-center">
+                  <User className="w-3 h-3 text-white" />
+                </div>
+                <span className="text-[11px] font-mono text-white/80">
+                  {address ? truncateAddress(address) : ''}
+                </span>
+                <LogOut className="w-3 h-3 text-white/40 group-hover:text-red-500/70 transition-colors" />
+              </button>
+            </>
           )}
 
           <button className="w-10 h-10 border border-white/20 flex items-center justify-center hover:border-white/40 transition-colors">

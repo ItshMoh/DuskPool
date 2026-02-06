@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield, TrendingUp, TrendingDown, Search,
   ArrowRight, Activity, Globe, Lock, Verified,
-  ChevronDown, Star, Filter
+  ChevronDown, Star, Filter, Loader, RefreshCw
 } from 'lucide-react';
+import { useWallet } from '../hooks/useWallet';
+import { useRegistry } from '../hooks/useRegistry';
 
 // Sparkline component
 const Sparkline: React.FC<{ data: number[]; positive: boolean }> = ({ data, positive }) => {
@@ -43,123 +45,91 @@ const Sparkline: React.FC<{ data: number[]; positive: boolean }> = ({ data, posi
   );
 };
 
-// Asset data
-const assetsData = [
-  {
-    id: 'tbill',
-    symbol: 'TBILL',
-    name: 'US Treasury Bill',
-    type: 'Security',
-    category: 'Treasury',
-    price: 98.42,
-    change24h: +0.12,
-    volume24h: 12500000,
-    marketCap: 500000000,
-    supply: 5080000,
-    issuer: 'treasury.stellar.io',
-    contract: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC',
-    color: '#6366f1',
-    icon: 'T',
-    sparkline: [97.8, 98.1, 97.9, 98.2, 98.0, 98.3, 98.42],
-    description: 'Tokenized short-term US government debt securities',
-    verified: true,
-    featured: true,
-  },
-  {
-    id: 'paxg',
-    symbol: 'PAXG',
-    name: 'PAX Gold',
-    type: 'Commodity',
-    category: 'Precious Metal',
-    price: 2042.10,
-    change24h: -1.24,
-    volume24h: 8400000,
-    marketCap: 84000000,
-    supply: 41150,
-    issuer: 'paxos.com',
-    contract: 'GCQHDR2KSCVNULFX3C2NWFHWOR7XLCFPNPZ6TL7RNPQMXRXLMZC7V7Z',
-    color: '#eab308',
-    icon: 'Au',
-    sparkline: [2050, 2060, 2045, 2055, 2040, 2048, 2042],
-    description: 'Each token backed by one fine troy ounce of London Good Delivery gold',
-    verified: true,
-    featured: true,
-  },
-  {
-    id: 'usdc',
-    symbol: 'USDC',
-    name: 'USD Coin',
-    type: 'Currency',
-    category: 'Stablecoin',
-    price: 1.00,
-    change24h: 0.00,
-    volume24h: 45000000,
-    marketCap: 24000000000,
-    supply: 24000000000,
-    issuer: 'circle.com',
-    contract: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
-    color: '#10b981',
-    icon: '$',
-    sparkline: [1, 1, 1, 1, 1, 1, 1],
-    description: 'Fully reserved stablecoin backed 1:1 by US dollars',
-    verified: true,
-    featured: false,
-  },
-  {
-    id: 'realtoken',
-    symbol: 'REALT',
-    name: 'RealToken Property',
-    type: 'Security',
-    category: 'Real Estate',
-    price: 52.40,
-    change24h: +0.85,
-    volume24h: 1200000,
-    marketCap: 15000000,
-    supply: 286259,
-    issuer: 'realt.co',
-    contract: 'GBXGQJWVLWOYHFLVTKWV5FGHA3LNYY2JQKM7OAJAUEQFU6LPCSEFVXON',
-    color: '#8b5cf6',
-    icon: 'R',
-    sparkline: [51.2, 51.8, 52.0, 51.5, 52.2, 52.1, 52.4],
-    description: 'Fractional ownership in US rental properties',
-    verified: true,
-    featured: false,
-  },
-];
+// Asset colors for display
+const ASSET_COLORS: Record<string, string> = {
+  'USDC': '#10b981',
+  'TBILL': '#6366f1',
+  'PAXG': '#eab308',
+  'REALT': '#8b5cf6',
+  'DEFAULT': '#7d00ff',
+};
+
+const ASSET_TYPE_NAMES: Record<number, string> = {
+  0: 'Treasury Bond',
+  1: 'Corporate Bond',
+  2: 'Municipal Bond',
+  3: 'Equity',
+  4: 'Real Estate',
+  5: 'Commodity',
+  6: 'Other',
+};
+
+interface AssetDisplay {
+  id: string;
+  symbol: string;
+  name: string;
+  type: string;
+  tokenAddress: string;
+  price: number;
+  change24h: number;
+  color: string;
+  icon: string;
+  sparkline: number[];
+  verified: boolean;
+  isActive: boolean;
+}
 
 const Markets: React.FC = () => {
   const navigate = useNavigate();
+  const { isConnected } = useWallet();
+  const { getActiveAssets } = useRegistry();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'marketCap' | 'volume' | 'change'>('marketCap');
+  const [assets, setAssets] = useState<AssetDisplay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
 
-  const categories = ['All', 'Treasury', 'Precious Metal', 'Stablecoin', 'Real Estate'];
+  const loadAssets = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const registeredAssets = await getActiveAssets();
 
-  const filteredAssets = assetsData
-    .filter(asset => {
-      const matchesSearch = asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           asset.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = !selectedCategory || selectedCategory === 'All' || asset.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'marketCap') return b.marketCap - a.marketCap;
-      if (sortBy === 'volume') return b.volume24h - a.volume24h;
-      if (sortBy === 'change') return b.change24h - a.change24h;
-      return 0;
-    });
+      const assetData: AssetDisplay[] = registeredAssets.map((asset) => ({
+        id: asset.token_address,
+        symbol: asset.symbol,
+        name: asset.symbol,
+        type: ASSET_TYPE_NAMES[asset.asset_type] || 'Other',
+        tokenAddress: asset.token_address,
+        price: 1.0, // Mock price
+        change24h: 0,
+        color: ASSET_COLORS[asset.symbol] || ASSET_COLORS['DEFAULT'],
+        icon: asset.symbol[0],
+        sparkline: [1, 1, 1, 1, 1, 1, 1],
+        verified: true,
+        isActive: asset.is_active,
+      }));
 
-  const featuredAssets = assetsData.filter(a => a.featured);
+      setAssets(assetData);
+    } catch (err) {
+      console.error('Failed to load assets:', err);
+      setAssets([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getActiveAssets]);
 
-  const formatNumber = (num: number) => {
-    if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
-    if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
-    if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
-    return `$${num.toFixed(2)}`;
-  };
+  useEffect(() => {
+    loadAssets();
+  }, [loadAssets]);
 
-  const totalMarketCap = assetsData.reduce((sum, a) => sum + a.marketCap, 0);
-  const totalVolume = assetsData.reduce((sum, a) => sum + a.volume24h, 0);
+  const filteredAssets = assets.filter(asset => {
+    const matchesSearch = asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         asset.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = !selectedType || selectedType === 'All' || asset.type === selectedType;
+    return matchesSearch && matchesType;
+  });
+
+  const assetTypes = ['All', ...new Set(assets.map(a => a.type))];
 
   return (
     <div className="w-full min-h-screen relative px-4 md:px-6 py-6 overflow-auto">
@@ -180,94 +150,27 @@ const Markets: React.FC = () => {
                 Supported Assets
               </h1>
               <span className="px-2 py-1 bg-brand-stellar/20 text-brand-stellar text-[10px] font-bold uppercase">
-                {assetsData.length} Assets
+                {assets.length} Assets
               </span>
+              <button
+                onClick={loadAssets}
+                className="p-1.5 hover:bg-white/10 transition-colors text-gray-500 hover:text-white"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
             <p className="text-sm text-gray-500">Trade tokenized real-world assets with zero-knowledge privacy</p>
           </div>
 
-          {/* Global Stats */}
           <div className="flex gap-6">
             <div className="text-right">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Total Market Cap</p>
-              <p className="text-xl font-oswald text-white">{formatNumber(totalMarketCap)}</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Registry</p>
+              <p className="text-xl font-oswald text-white">{assets.length} Assets</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">24h Volume</p>
-              <p className="text-xl font-oswald text-emerald-400">{formatNumber(totalVolume)}</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Active</p>
+              <p className="text-xl font-oswald text-emerald-400">{assets.filter(a => a.isActive).length}</p>
             </div>
-          </div>
-        </div>
-
-        {/* Featured Assets */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Star className="w-4 h-4 text-yellow-500" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wide">Featured</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {featuredAssets.map(asset => (
-              <div
-                key={asset.id}
-                className="group relative p-5 bg-gradient-to-br from-zinc-900/80 via-zinc-900/50 to-transparent border border-white/10 hover:border-white/20 transition-all cursor-pointer overflow-hidden"
-                onClick={() => navigate('/trade')}
-              >
-                {/* Accent gradient */}
-                <div
-                  className="absolute top-0 left-0 w-full h-1 opacity-60"
-                  style={{ background: `linear-gradient(90deg, ${asset.color}, transparent)` }}
-                ></div>
-
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-14 h-14 flex items-center justify-center text-lg font-bold border-2"
-                      style={{ borderColor: `${asset.color}60`, backgroundColor: `${asset.color}15`, color: asset.color }}
-                    >
-                      {asset.icon}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-xl font-bold text-white">{asset.symbol}</h3>
-                        {asset.verified && <Verified className="w-4 h-4 text-brand-stellar" />}
-                      </div>
-                      <p className="text-xs text-gray-500">{asset.name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-gray-400">{asset.type}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-gray-400">{asset.category}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-2xl font-mono text-white">${asset.price.toLocaleString()}</p>
-                    <div className={`flex items-center justify-end gap-1 ${asset.change24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {asset.change24h >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                      <span className="text-sm font-mono">{asset.change24h >= 0 ? '+' : ''}{asset.change24h.toFixed(2)}%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-end justify-between mt-4 pt-4 border-t border-white/5">
-                  <div className="flex gap-6">
-                    <div>
-                      <p className="text-[10px] text-gray-500 mb-1">Market Cap</p>
-                      <p className="text-sm font-mono text-white">{formatNumber(asset.marketCap)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 mb-1">24h Volume</p>
-                      <p className="text-sm font-mono text-white">{formatNumber(asset.volume24h)}</p>
-                    </div>
-                  </div>
-                  <Sparkline data={asset.sparkline} positive={asset.change24h >= 0} />
-                </div>
-
-                <p className="mt-3 text-xs text-gray-500 line-clamp-1">{asset.description}</p>
-
-                <ArrowRight className="absolute bottom-5 right-5 w-5 h-5 text-white/0 group-hover:text-white/40 transition-all transform translate-x-2 group-hover:translate-x-0" />
-              </div>
-            ))}
           </div>
         </div>
 
@@ -284,30 +187,21 @@ const Markets: React.FC = () => {
             />
           </div>
 
-          <div className="flex gap-2">
-            {categories.map(cat => (
+          <div className="flex gap-2 flex-wrap">
+            {assetTypes.map(type => (
               <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat === 'All' ? null : cat)}
+                key={type}
+                onClick={() => setSelectedType(type === 'All' ? null : type)}
                 className={`px-3 py-2 text-xs font-medium transition-all ${
-                  (cat === 'All' && !selectedCategory) || selectedCategory === cat
+                  (type === 'All' && !selectedType) || selectedType === type
                     ? 'bg-brand-stellar text-white'
                     : 'bg-zinc-900/50 border border-white/10 text-gray-400 hover:text-white hover:border-white/20'
                 }`}
               >
-                {cat}
+                {type}
               </button>
             ))}
           </div>
-
-          <button
-            onClick={() => setSortBy(prev => prev === 'marketCap' ? 'volume' : prev === 'volume' ? 'change' : 'marketCap')}
-            className="flex items-center gap-2 px-3 py-2 bg-zinc-900/50 border border-white/10 text-gray-400 text-xs hover:text-white hover:border-white/20 transition-all"
-          >
-            <Filter className="w-3 h-3" />
-            Sort: {sortBy === 'marketCap' ? 'Market Cap' : sortBy === 'volume' ? 'Volume' : 'Change'}
-            <ChevronDown className="w-3 h-3" />
-          </button>
         </div>
 
         {/* Asset Registry Table */}
@@ -323,77 +217,86 @@ const Markets: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[800px]">
-              <thead>
-                <tr className="border-b border-white/5 bg-black/20">
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Asset</th>
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Price</th>
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">24h Change</th>
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">7d Chart</th>
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider text-right">Market Cap</th>
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider text-right">Volume (24h)</th>
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Issuer</th>
-                  <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredAssets.map(asset => (
-                  <tr key={asset.id} className="group hover:bg-white/5 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-9 h-9 flex items-center justify-center text-xs font-bold border shrink-0"
-                          style={{ borderColor: `${asset.color}50`, backgroundColor: `${asset.color}15`, color: asset.color }}
-                        >
-                          {asset.icon}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-white">{asset.symbol}</span>
-                            {asset.verified && <Verified className="w-3 h-3 text-brand-stellar" />}
-                          </div>
-                          <span className="text-[10px] text-gray-500">{asset.name}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-sm font-mono text-white">${asset.price.toLocaleString()}</span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className={`flex items-center gap-1 ${asset.change24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {asset.change24h >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                        <span className="text-xs font-mono">{asset.change24h >= 0 ? '+' : ''}{asset.change24h.toFixed(2)}%</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Sparkline data={asset.sparkline} positive={asset.change24h >= 0} />
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="text-sm font-mono text-white">{formatNumber(asset.marketCap)}</span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="text-sm font-mono text-gray-400">{formatNumber(asset.volume24h)}</span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-1 text-xs text-brand-stellar font-mono">
-                        <Globe className="w-3 h-3" />
-                        <span>{asset.issuer}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <button
-                        onClick={() => navigate('/trade')}
-                        className="px-3 py-1.5 bg-brand-stellar/20 text-brand-stellar text-[10px] font-bold uppercase hover:bg-brand-stellar/30 transition-colors"
-                      >
-                        Trade
-                      </button>
-                    </td>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader className="w-6 h-6 text-brand-stellar animate-spin" />
+              <span className="ml-2 text-gray-500">Loading assets from registry...</span>
+            </div>
+          ) : filteredAssets.length === 0 ? (
+            <div className="text-center py-12">
+              <Shield className="w-8 h-8 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-500">No registered assets found</p>
+              {!isConnected && (
+                <p className="text-sm text-gray-600 mt-2">Connect your wallet to view assets</p>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-white/5 bg-black/20">
+                    <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Asset</th>
+                    <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Type</th>
+                    <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Price</th>
+                    <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">7d Chart</th>
+                    <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Contract</th>
+                    <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider">Status</th>
+                    <th className="py-3 px-4 text-[10px] text-gray-500 uppercase font-normal tracking-wider text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredAssets.map(asset => (
+                    <tr key={asset.id} className="group hover:bg-white/5 transition-colors">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-9 h-9 flex items-center justify-center text-xs font-bold border shrink-0"
+                            style={{ borderColor: `${asset.color}50`, backgroundColor: `${asset.color}15`, color: asset.color }}
+                          >
+                            {asset.icon}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white">{asset.symbol}</span>
+                              {asset.verified && <Verified className="w-3 h-3 text-brand-stellar" />}
+                            </div>
+                            <span className="text-[10px] text-gray-500">{asset.name}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-xs px-2 py-1 bg-white/5 text-gray-400">{asset.type}</span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-sm font-mono text-white">${asset.price.toLocaleString()}</span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <Sparkline data={asset.sparkline} positive={asset.change24h >= 0} />
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          {asset.tokenAddress.slice(0, 8)}...{asset.tokenAddress.slice(-4)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={`text-[10px] px-2 py-1 ${asset.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                          {asset.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <button
+                          onClick={() => navigate('/trade')}
+                          className="px-3 py-1.5 bg-brand-stellar/20 text-brand-stellar text-[10px] font-bold uppercase hover:bg-brand-stellar/30 transition-colors"
+                        >
+                          Trade
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Bottom Info */}

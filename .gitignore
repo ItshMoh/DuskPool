@@ -8,12 +8,10 @@ target
 **/node_modules/
 test-output/** 
 
-# Explicit node_modules entries (added manually)
-/prover/node_modules/
-/circuits/node_modules/
-/matching-engine/node_modules/
+diagrams/
+dist/
 
-docs/
+# Explicit node_modules entries (added manually) 
 
 # Large circuit files
 *.ptau
