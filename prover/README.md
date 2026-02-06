@@ -1,6 +1,6 @@
 # Prover
 
-TypeScript library for generating ZK proofs compatible with the settlement contract.
+TypeScript library for generating ZK proofs compatible with the settlement contract. See [diagrams/04-proof-generation.excalidraw.json](../diagrams/04-proof-generation.excalidraw.json) for the proof generation flow.
 
 ## Installation
 
