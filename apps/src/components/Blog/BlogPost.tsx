@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import { getBlogPostById } from '../../data/blogData';
 import { CodeBlock } from './CodeBlock';
@@ -264,7 +265,7 @@ export function BlogPost() {
           <div className="w-full max-w-[640px]">
               <article className="blog-content font-serif">
                 <ReactMarkdown
-                  remarkPlugins={[remarkMath]}
+                  remarkPlugins={[remarkMath, remarkGfm]}
                   rehypePlugins={[rehypeKatex]}
                   components={{
                     h1: ({ children }: ChildrenProps) => (
@@ -358,7 +359,7 @@ export function BlogPost() {
                     ),
                     table: ({ children }: ChildrenProps) => (
                       <div className="overflow-x-auto my-8">
-                        <table className="w-full border-collapse font-sans text-[0.9375rem]">
+                        <table className="w-full border border-gray-200 border-collapse font-sans text-[0.9375rem]">
                           {children}
                         </table>
                       </div>
@@ -369,12 +370,12 @@ export function BlogPost() {
                       </thead>
                     ),
                     th: ({ children }: ChildrenProps) => (
-                      <th className="text-left p-4 text-sm font-semibold text-gray-900">
+                      <th className="text-left p-4 text-sm font-semibold text-gray-900 border-r border-gray-200 last:border-r-0">
                         {children}
                       </th>
                     ),
                     td: ({ children }: ChildrenProps) => (
-                      <td className="p-4 text-gray-600 border-b border-gray-100">
+                      <td className="p-4 text-gray-700 border-b border-gray-100 border-r border-gray-200 last:border-r-0">
                         {children}
                       </td>
                     ),
