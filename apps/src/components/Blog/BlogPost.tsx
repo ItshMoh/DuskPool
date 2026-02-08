@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import { getBlogPostById } from '../../data/blogData';
 import { CodeBlock } from './CodeBlock';
@@ -261,44 +262,44 @@ export function BlogPost() {
           <HeroGraphic title={post.title} />
 
           {/* ------------------- ARTICLE TEXT ------------------- */}
-          <div className="w-full max-w-[640px]">
+          <div className="w-full max-w-[680px]">
               <article className="blog-content font-serif">
                 <ReactMarkdown
-                  remarkPlugins={[remarkMath]}
+                  remarkPlugins={[remarkMath, remarkGfm]}
                   rehypePlugins={[rehypeKatex]}
                   components={{
                     h1: ({ children }: ChildrenProps) => (
-                      <h2 className="font-serif text-[1.75rem] md:text-[2rem] font-normal text-[#1a1a1a] mb-8 tracking-[-0.01em] mt-16 leading-[1.25]">
+                      <h2 className="font-serif text-[1.75rem] md:text-[2rem] font-normal text-[#1a1a1a] mb-6 tracking-[-0.01em] mt-16 leading-[1.25]">
                         {children}
                       </h2>
                     ),
                     h2: ({ children }: ChildrenProps) => (
-                      <h3 className="font-serif text-[1.5rem] md:text-[1.75rem] font-normal text-[#1a1a1a] mb-6 tracking-[-0.01em] mt-14 leading-[1.3]">
+                      <h3 className="font-serif text-[1.5rem] md:text-[1.75rem] font-normal text-[#1a1a1a] mb-6 tracking-[-0.01em] mt-16 leading-[1.3]">
                         {children}
                       </h3>
                     ),
                     h3: ({ children }: ChildrenProps) => (
-                      <h4 className="font-serif text-[1.25rem] md:text-[1.375rem] font-normal text-[#1a1a1a] mb-5 mt-12 leading-[1.35]">
+                      <h4 className="font-serif text-[1.25rem] md:text-[1.375rem] font-normal text-[#1a1a1a] mb-5 mt-14 leading-[1.35]">
                         {children}
                       </h4>
                     ),
                     p: ({ children }: ChildrenProps) => (
-                      <p className="font-serif text-[1.0625rem] leading-[1.85] text-[#1a1a1a] mb-8">
+                      <p className="font-serif text-[1.0625rem] leading-[1.9] text-[#1a1a1a] mb-10">
                         {children}
                       </p>
                     ),
                     ul: ({ children }: ChildrenProps) => (
-                      <ul className="list-disc list-outside ml-5 mb-8 text-[#1a1a1a] space-y-3">
+                      <ul className="list-disc list-outside ml-5 mb-10 text-[#1a1a1a] space-y-4">
                         {children}
                       </ul>
                     ),
                     ol: ({ children }: ChildrenProps) => (
-                      <ol className="list-decimal list-outside ml-5 mb-8 text-[#1a1a1a] space-y-3">
+                      <ol className="list-decimal list-outside ml-5 mb-10 text-[#1a1a1a] space-y-4">
                         {children}
                       </ol>
                     ),
                     li: ({ children }: ChildrenProps) => (
-                      <li className="font-serif text-[1.0625rem] leading-[1.85] pl-1">
+                      <li className="font-serif text-[1.0625rem] leading-[1.9] pl-1">
                         {children}
                       </li>
                     ),
@@ -321,12 +322,12 @@ export function BlogPost() {
                       </Link>
                     ),
                     blockquote: ({ children }: ChildrenProps) => (
-                      <blockquote className="border-l-[3px] border-gray-300 pl-6 my-10 text-[#444] italic font-serif text-[1.0625rem] leading-[1.85]">
+                      <blockquote className="border-l-[3px] border-gray-300 pl-6 mt-4 mb-10 text-[#444] italic font-serif text-[1.0625rem] leading-[1.9]">
                         {children}
                       </blockquote>
                     ),
                     pre: ({ children }: ChildrenProps) => (
-                      <pre className="bg-[#0d0d0d] text-gray-100 rounded-lg p-5 overflow-x-auto my-10 text-[0.875rem] leading-[1.7]">
+                      <pre className="bg-[#0d0d0d] text-gray-100 rounded-lg p-5 overflow-x-auto my-12 text-[0.875rem] leading-[1.7]">
                         {children}
                       </pre>
                     ),
@@ -343,7 +344,7 @@ export function BlogPost() {
                       );
                     },
                     img: ({ src, alt }: { src?: string; alt?: string }) => (
-                      <figure className="my-12">
+                      <figure className="my-14">
                         <img
                           src={src}
                           alt={alt}
@@ -358,11 +359,11 @@ export function BlogPost() {
                       </figure>
                     ),
                     hr: () => (
-                      <hr className="my-14 border-gray-200" />
+                      <hr className="my-16 border-gray-200" />
                     ),
                     table: ({ children }: ChildrenProps) => (
-                      <div className="overflow-x-auto my-8">
-                        <table className="w-full border-collapse font-sans text-[0.9375rem]">
+                      <div className="overflow-x-auto my-12">
+                        <table className="w-full border border-gray-200 border-collapse font-sans text-[0.9375rem]">
                           {children}
                         </table>
                       </div>
@@ -373,12 +374,12 @@ export function BlogPost() {
                       </thead>
                     ),
                     th: ({ children }: ChildrenProps) => (
-                      <th className="text-left p-4 text-sm font-semibold text-gray-900">
+                      <th className="text-left p-4 text-sm font-semibold text-gray-900 border-r border-gray-200 last:border-r-0">
                         {children}
                       </th>
                     ),
                     td: ({ children }: ChildrenProps) => (
-                      <td className="p-4 text-gray-600 border-b border-gray-100">
+                      <td className="p-4 text-gray-700 border-b border-gray-100 border-r border-gray-200 last:border-r-0">
                         {children}
                       </td>
                     ),
