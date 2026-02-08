@@ -21,6 +21,11 @@ async function processBlogPosts() {
 
   const posts = [];
 
+  const extractFirstImage = (markdown) => {
+    const match = markdown.match(/!\[[^\]]*\]\(([^)]+)\)/);
+    return match ? match[1] : '';
+  };
+
   for (const file of files) {
     const filePath = path.join(docsDir, file);
     const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -31,6 +36,12 @@ async function processBlogPosts() {
     // Generate ID from filename
     const id = path.basename(file, '.md');
 
+    const thumbnail =
+      data.thumbnail ||
+      data.cover ||
+      data.image ||
+      extractFirstImage(content);
+
     posts.push({
       id,
       title: data.title || 'Untitled',
@@ -40,6 +51,7 @@ async function processBlogPosts() {
       author: data.author || 'Duskpool Team',
       readTime: data.readTime || '5 min read',
       category: data.category || 'Protocol',
+      thumbnail: thumbnail || '',
       tags: data.tags || [],
     });
   }
@@ -60,6 +72,7 @@ export interface BlogPost {
   author: string;
   readTime: string;
   category: string;
+  thumbnail: string;
   tags: string[];
 }
 

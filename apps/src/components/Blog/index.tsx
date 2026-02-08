@@ -14,12 +14,6 @@ const formatDate = (dateString: string) => {
   }).toUpperCase();
 };
 
-const resolvePostImage = (postId: string) => {
-  if (postId === 'whitepaper') return '/blog-assets/image.png';
-  if (postId === 'introducing-duskpool') return '/blog-assets/image-1.png';
-  return '';
-};
-
 type ArticleCardProps = {
   id: string;
   title: string;
@@ -27,18 +21,17 @@ type ArticleCardProps = {
   category: string;
   date: string;
   author: string;
+  thumbnail: string;
 };
 
-const ArticleCard = ({ id, title, excerpt, category, date, author }: ArticleCardProps) => {
-  const image = resolvePostImage(id);
-
+const ArticleCard = ({ id, title, excerpt, category, date, author, thumbnail }: ArticleCardProps) => {
   return (
     <Link to={`/blog/${id}`} className="group block">
       <article className="h-full border border-white/10 bg-black/30 hover:border-white/20 transition-colors">
         <div className="relative h-56 overflow-hidden border-b border-white/10">
-          {image ? (
+          {thumbnail ? (
             <img
-              src={image}
+              src={thumbnail}
               alt={title}
               className="h-full w-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-[1.02] transition-all duration-500"
             />
@@ -194,9 +187,9 @@ export function Blog() {
             <div className="border border-white/10 bg-black/40 overflow-hidden group">
               <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-0">
                 <div className="relative min-h-[320px]">
-                  {resolvePostImage(featuredPost.id) ? (
+                  {featuredPost.thumbnail ? (
                     <img
-                      src={resolvePostImage(featuredPost.id)}
+                      src={featuredPost.thumbnail}
                       alt={featuredPost.title}
                       className="absolute inset-0 h-full w-full object-cover opacity-75 group-hover:scale-[1.03] transition-transform duration-700"
                     />
@@ -256,6 +249,7 @@ export function Blog() {
                 category={post.category}
                 date={post.date}
                 author={post.author}
+                thumbnail={post.thumbnail}
               />
             ))}
           </div>
