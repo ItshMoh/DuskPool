@@ -1,0 +1,18 @@
+node_modules
+**/node_modules
+**/dist
+.git
+contracts
+libs
+apps
+docs
+e2e-test
+target
+
+# Exclude bulky circuit files we don't need (keep only wasm + final zkey)
+circuits/build/*.ptau
+circuits/build/*.r1cs
+circuits/build/*.sym
+circuits/build/settlement_proof_0000.zkey
+circuits/build/verification_key.json
+circuits/build/vk_bytes.hex

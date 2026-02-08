@@ -15,4 +15,10 @@ dist/
 
 # Large circuit files
 *.ptau
-circuits/build/ 
+circuits/build/*
+
+# Un-ignore the two files needed for matching engine
+!circuits/build/settlement_proof_final.zkey
+!circuits/build/settlement_proof_js/
+circuits/build/settlement_proof_js/*
+!circuits/build/settlement_proof_js/settlement_proof.wasm
