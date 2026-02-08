@@ -14,6 +14,7 @@ import {
   ControlledTabs,
   PageHeader,
   LoadingState, EmptyState,
+  TradingPairLogo,
 } from './ui';
 
 // Display interfaces
@@ -249,7 +250,12 @@ const History: React.FC = () => {
                                <div className="font-mono text-[10px] text-gray-600">Commit: {order.hash}</div>
                             </TableCell>
                             <TableCell mono className="text-xs text-gray-400">{order.timestamp}</TableCell>
-                            <TableCell className="text-sm font-bold text-white">{order.asset}/USDC</TableCell>
+                            <TableCell>
+                               <div className="flex items-center gap-2">
+                                  <TradingPairLogo baseSymbol={order.asset} size="xs" />
+                                  <span className="text-sm font-bold text-white">{order.asset}/USDC</span>
+                               </div>
+                            </TableCell>
                             <TableCell><SideBadge side={order.side} /></TableCell>
                             <TableCell align="right" mono className="text-sm text-gray-300">${order.price.toFixed(2)}</TableCell>
                             <TableCell align="right" mono className="text-sm text-white">{order.amount.toLocaleString()}</TableCell>
@@ -292,7 +298,12 @@ const History: React.FC = () => {
                          <TableRow key={set.id}>
                             <TableCell mono className="text-xs text-white">#{set.id}</TableCell>
                             <TableCell mono className="text-xs text-gray-400">{set.timestamp}</TableCell>
-                            <TableCell className="text-sm font-bold text-white">{set.asset}/USDC</TableCell>
+                            <TableCell>
+                               <div className="flex items-center gap-2">
+                                  <TradingPairLogo baseSymbol={set.asset} size="xs" />
+                                  <span className="text-sm font-bold text-white">{set.asset}/USDC</span>
+                               </div>
+                            </TableCell>
                             <TableCell><SideBadge side={set.side} /></TableCell>
                             <TableCell align="right" mono className="text-sm text-gray-300">${set.price.toFixed(2)}</TableCell>
                             <TableCell align="right" mono className="text-sm text-white">{set.amount.toLocaleString()}</TableCell>

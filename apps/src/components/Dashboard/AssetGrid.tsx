@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wallet, ArrowRight } from 'lucide-react';
 import { Sparkline } from './Sparkline';
-import { Card, EmptyState, Button } from '../ui';
+import { Card, EmptyState, Button, AssetLogo } from '../ui';
 
 interface AssetData {
   symbol: string;
@@ -63,12 +63,11 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
 
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div
-                className="w-8 h-8 flex items-center justify-center text-xs font-bold border"
-                style={{ borderColor: `${asset.color}50`, backgroundColor: `${asset.color}15`, color: asset.color }}
-              >
-                {asset.icon}
-              </div>
+              <AssetLogo
+                symbol={asset.symbol}
+                tokenAddress={asset.tokenAddress}
+                size="sm"
+              />
               <div>
                 <p className="text-sm font-bold text-white">{asset.symbol}</p>
                 <p className="text-[10px] text-gray-500">{asset.name}</p>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { useRegistry } from '../hooks/useRegistry';
+import { AssetLogo } from './ui';
 
 // Sparkline component
 const Sparkline: React.FC<{ data: number[]; positive: boolean }> = ({ data, positive }) => {
@@ -249,12 +250,11 @@ const Markets: React.FC = () => {
                     <tr key={asset.id} className="group hover:bg-white/5 transition-colors">
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
-                          <div
-                            className="w-9 h-9 flex items-center justify-center text-xs font-bold border shrink-0"
-                            style={{ borderColor: `${asset.color}50`, backgroundColor: `${asset.color}15`, color: asset.color }}
-                          >
-                            {asset.icon}
-                          </div>
+                          <AssetLogo
+                            symbol={asset.symbol}
+                            tokenAddress={asset.tokenAddress}
+                            size="md"
+                          />
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-white">{asset.symbol}</span>

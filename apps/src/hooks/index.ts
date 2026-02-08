@@ -12,3 +12,4 @@ export type {
 } from './useMatchingEngine';
 export { useOrderSecrets } from './useOrderSecrets';
 export type { StoredOrderSecret } from './useOrderSecrets';
+export { useAssetLogo, registerAssetLogo, getRegisteredLogos, clearLogoCache } from './useAssetLogo';

@@ -24,3 +24,7 @@ export { SectionHeader, PageHeader, CompactHeader } from './SectionHeader';
 
 // Modal components
 export { Modal, ConfirmDialog } from './Modal';
+
+// Asset logo components
+export { AssetLogo } from './AssetLogo';
+export { TradingPairLogo } from './TradingPairLogo';

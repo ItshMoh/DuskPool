@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronDown, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import type { AssetOption, ChartType, ChartTypeOption } from './types';
+import { TradingPairLogo } from '../ui';
 
 interface TradeHeaderProps {
   assets: AssetOption[];
@@ -61,6 +62,11 @@ export const TradeHeader: React.FC<TradeHeaderProps> = ({
     <div className="flex flex-wrap items-center justify-between mb-2 gap-3 p-3 bg-zinc-900/50 backdrop-blur-md border border-white/5 shrink-0">
       {/* Asset Info */}
       <div className="flex items-center gap-4">
+        <TradingPairLogo
+          baseSymbol={selectedAsset?.symbol || '?'}
+          baseTokenAddress={selectedAsset?.address}
+          size="sm"
+        />
         <div className="relative">
           <button
             onClick={() => setShowAssetDropdown(!showAssetDropdown)}

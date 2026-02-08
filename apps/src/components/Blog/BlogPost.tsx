@@ -331,8 +331,12 @@ export function BlogPost() {
                         {children}
                       </pre>
                     ),
-                    code: ({ className, children, ...props }: { className?: string } & ChildrenProps & Record<string, unknown>) => {
-                      const inline = (props.inline as boolean | undefined) || !className;
+                    code: ({ className, children, ...props }: any) => {
+                      // ReactMarkdown passes HTML attributes plus an `inline` flag.
+                      // Use a permissive any here so the function shape matches the
+                      // expected ComponentType signature and avoids a strict
+                      // index-signature mismatch with HTMLAttributes.
+                      const inline = (props?.inline as boolean | undefined) || !className;
                       return (
                         <CodeBlock className={className} inline={inline}>
                           {children}

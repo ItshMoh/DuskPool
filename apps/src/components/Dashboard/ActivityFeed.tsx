@@ -1,6 +1,6 @@
 import React from 'react';
-import { Activity, ArrowRight, Clock } from 'lucide-react';
-import { Card, SectionHeader, EmptyState } from '../ui';
+import { ArrowRight, Clock } from 'lucide-react';
+import { Card, SectionHeader, EmptyState, TradingPairLogo } from '../ui';
 
 interface ActivityItem {
   id: number;
@@ -33,13 +33,14 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, onViewAl
         <div className="space-y-1">
           {activities.map(activity => (
             <div key={activity.id} className="flex items-center gap-3 p-2 hover:bg-white/5 transition-colors group">
-              <div className="w-8 h-8 flex items-center justify-center border shrink-0 border-emerald-500/30 bg-emerald-500/10">
-                <Activity className="w-4 h-4 text-emerald-500" />
-              </div>
+              <TradingPairLogo
+                baseSymbol={activity.asset}
+                size="xs"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold uppercase text-emerald-400">{activity.type}</span>
-                  <span className="text-xs font-bold text-white">{activity.asset}</span>
+                  <span className="text-xs font-bold text-white">{activity.asset}/USDC</span>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
                   <span>{activity.amount}</span>

@@ -1,8 +1,8 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
-import { Card, LoadingState, EmptyState } from '../ui';
+import { Card, LoadingState, EmptyState, AssetLogo } from '../ui';
 import { AssetBalance } from './types';
-import { getAssetColor, formatAmount } from '../../utils';
+import { formatAmount } from '../../utils';
 
 interface AssetSelectorProps {
   assets: AssetBalance[];
@@ -48,14 +48,11 @@ export const AssetSelector: React.FC<AssetSelectorProps> = ({
         className="flex items-center justify-between p-4 bg-black/30 border border-white/5 cursor-pointer hover:border-white/10 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 flex items-center justify-center border border-white/10"
-            style={{ backgroundColor: `${getAssetColor(currentAsset?.symbol || '')}15` }}
-          >
-            <span className="text-sm font-bold" style={{ color: getAssetColor(currentAsset?.symbol || '') }}>
-              {currentAsset?.symbol[0] || '?'}
-            </span>
-          </div>
+          <AssetLogo
+            symbol={currentAsset?.symbol || '?'}
+            tokenAddress={currentAsset?.tokenAddress}
+            size="md"
+          />
           <div>
             <p className="text-white font-bold">{currentAsset?.symbol || 'Select'}</p>
             <p className="text-[10px] text-gray-500 font-mono">
@@ -78,12 +75,11 @@ export const AssetSelector: React.FC<AssetSelectorProps> = ({
               }`}
             >
               <div className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 flex items-center justify-center border border-white/10"
-                  style={{ backgroundColor: `${getAssetColor(asset.symbol)}15` }}
-                >
-                  <span className="text-xs font-bold" style={{ color: getAssetColor(asset.symbol) }}>{asset.symbol[0]}</span>
-                </div>
+                <AssetLogo
+                  symbol={asset.symbol}
+                  tokenAddress={asset.tokenAddress}
+                  size="sm"
+                />
                 <div>
                   <p className="text-sm text-white font-bold">{asset.symbol}</p>
                   <p className="text-[10px] text-gray-500">{asset.name}</p>
