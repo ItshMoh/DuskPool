@@ -59,7 +59,7 @@ export const TradeHeader: React.FC<TradeHeaderProps> = ({
     : priceChange24h < 0 ? ArrowDownRight
     : Minus;
   return (
-    <div className="flex flex-wrap items-center justify-between mb-2 gap-3 p-3 bg-zinc-900/50 backdrop-blur-md border border-white/5 shrink-0">
+    <div className="relative z-50 flex flex-wrap items-center justify-between mb-2 gap-3 p-3 bg-zinc-900/50 backdrop-blur-md border border-white/5 shrink-0">
       {/* Asset Info */}
       <div className="flex items-center gap-4">
         <TradingPairLogo

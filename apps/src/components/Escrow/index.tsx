@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import { useWallet } from '../../hooks/useWallet';
 import { useSettlement } from '../../hooks/useSettlement';
 import { useRegistry } from '../../hooks/useRegistry';
+import { useFaucet } from '../../hooks/useFaucet';
 import { EmptyState } from '../ui';
 
 import { AssetBalance, Transaction } from './types';
@@ -24,6 +25,7 @@ const Escrow: React.FC = () => {
   const { address, balances, isConnected } = useWallet();
   const { deposit, withdraw, getEscrowBalance, getLockedBalance, getAvailableBalance, isLoading: txLoading, error: txError } = useSettlement();
   const { getActiveAssets } = useRegistry();
+  const { requestTestTokens, isLoading: faucetLoading, error: faucetError } = useFaucet();
 
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
@@ -33,6 +35,7 @@ const Escrow: React.FC = () => {
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [faucetStatus, setFaucetStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   // Load assets and balances
   const loadAssets = useCallback(async () => {
@@ -176,6 +179,18 @@ const Escrow: React.FC = () => {
     }
   };
 
+  const handleFaucet = async () => {
+    if (!currentAsset) return;
+    setFaucetStatus('idle');
+    try {
+      await requestTestTokens(currentAsset.symbol);
+      setFaucetStatus('success');
+      await loadAssets();
+    } catch {
+      setFaucetStatus('error');
+    }
+  };
+
   // Calculate totals
   const totalEscrow = assets.reduce((sum, a) => sum + Number(a.escrowBalance) / 10 ** a.decimals * a.price, 0);
   const totalAvailable = assets.reduce((sum, a) => sum + Number(a.availableBalance) / 10 ** a.decimals * a.price, 0);
@@ -224,6 +239,11 @@ const Escrow: React.FC = () => {
             onSelectAsset={handleSelectAsset}
             onSubmit={handleSubmit}
             onRefresh={loadAssets}
+            faucetLoading={faucetLoading}
+            faucetStatus={faucetStatus}
+            faucetError={faucetError}
+            onFaucet={handleFaucet}
+            paymentAssetSymbol={PAYMENT_ASSET.symbol}
           />
 
           {/* Right Card - Transaction History */}
