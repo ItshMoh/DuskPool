@@ -5,6 +5,7 @@ excerpt: "A technical deep-dive into how Duskpool uses ZK proofs to enable priva
 author: "Duskpool Team"
 readTime: "10 min read"
 category: "Technical"
+thumbnail: "/blog-assets/duskNstellarnew.png"
 tags: ["zk-proofs", "cryptography", "technical", "groth16"]
 ---
 

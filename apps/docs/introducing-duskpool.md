@@ -5,6 +5,7 @@ excerpt: "A zero-knowledge dark pool for institutional-grade real-world asset tr
 author: "Duskpool Team"
 readTime: "6 min read"
 category: "Protocol"
+thumbnail: "/blog-assets/duskNstellarnew.png"
 tags: ["announcement", "stellar", "privacy", "rwa"]
 ---
 
