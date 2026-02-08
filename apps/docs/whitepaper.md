@@ -1,26 +1,34 @@
+---
+title: "Duskpool Whitepaper: RWA Dark Pool on Stellar"
+excerpt: "A full-stack technical overview of Duskpool’s private RWA trading architecture on Stellar, from commitments to on-chain ZK settlement."
+author: "Duskpool Team"
+readTime: "8 min read"
+category: "Whitepaper"
+tags: ["whitepaper", "stellar", "rwa", "privacy", "zk-proofs"]
+---
+
 # RWA Dark Pool on Stellar
 
 ## Executive Summary
 
-We are building a private market for tokenized real‑world assets (RWAs) on Stellar. The system enables compliant institutions to trade without leaking order details to the public network, while still settling on‑chain with cryptographic proof of correctness. We use Stellar’s X‑Ray (Protocol 25) cryptographic primitives to verify zero‑knowledge proofs on‑chain, ensuring that only whitelisted participants can trade and that settlements are valid without exposing sensitive order information.
+Duskpool is a private trading venue for tokenized real‑world assets (RWAs) on Stellar. It allows compliant institutions to execute large trades without leaking sensitive order details, while still settling on‑chain with cryptographic proof of correctness. The core idea is simple: commitments keep order details hidden, a matching engine finds compatible trades off‑chain, and zero‑knowledge proofs (ZK) allow on‑chain settlement without exposing price, size, or identity.
 
-Our approach combines commitment‑based order entry, off‑chain matching, and on‑chain ZK verification. This unlocks liquidity for regulated assets (bonds, treasuries, funds) while preserving market integrity, minimizing information leakage, and keeping compliance guarantees intact.
+Our system is built around Stellar’s X‑Ray (Protocol 25) cryptographic primitives. These native primitives make it practical to verify Groth16 proofs on‑chain using BN254 pairings and Poseidon2 hashing, enabling verifiable privacy without requiring a separate chain or trusted middlemen.
+
+This whitepaper explains the full stack: the cryptographic primitives, the ZK circuit design, the smart contract roles, the off‑chain matching and proof generation pipeline, and the trust model that keeps the system robust under adversarial conditions.
 
 ## Problem
 
 Institutional RWA trading today faces a structural conflict between transparency and privacy.
 
-**Market leakage**
+**Market leakage**  
+> Public order books reveal order size, price intent, and trading strategy. This exposes participants to front‑running and adverse selection, discourages block trades, and widens spreads.
 
-Public order books reveal order size, price intent, and trading strategy. This exposes participants to front‑running and adverse selection, discourages block trades, and widens spreads.
+**Compliance constraints**  
+> RWAs require strict KYC/AML and eligibility controls, yet traditional private venues are closed and slow. Public networks are fast but transparent, creating a compliance vs. privacy trade‑off.
 
-**Compliance constraints**
-
-RWAs require strict KYC/AML and eligibility controls, yet traditional private venues are closed and slow. Public networks are fast but transparent, creating a compliance vs. privacy trade‑off.
-
-**Operational friction**
-
-Settlement across bilateral agreements is slow, with fragmented custody and weak interoperability. Institutions need programmable settlement that can enforce policy and privacy simultaneously.
+**Operational friction**  
+> Settlement across bilateral agreements is slow, with fragmented custody and weak interoperability. Institutions need programmable settlement that can enforce policy and privacy simultaneously.
 
 A modern RWA market must keep trading details private while preserving provable correctness, regulated access, and on‑chain settlement finality.
 
@@ -28,17 +36,14 @@ A modern RWA market must keep trading details private while preserving provable 
 
 We provide a private market layer on Stellar for RWA tokens. The system delivers confidentiality and compliance by splitting the workflow into three phases.
 
-**1. Commit**
+**1. Commit**  
+> Traders submit cryptographic commitments of their orders to the on‑chain orderbook. Commitments are binding and hiding, so the market can index orders without revealing price or size.
 
-Traders submit cryptographic commitments of their orders to the on‑chain orderbook. Commitments are binding and hiding, so the market can index orders without revealing price or size.
+**2. Match**  
+> An off‑chain matching engine compares full order details privately, identifies compatible trades, and prepares a settlement proposal.
 
-**2. Match**
-
-An off‑chain matching engine compares full order details privately, identifies compatible trades, and prepares a settlement proposal.
-
-**3. Prove & Settle**
-
-A zero‑knowledge proof is generated to show that both traders are whitelisted and that commitments are consistent with the agreed trade. The settlement contract verifies the proof on‑chain and atomically swaps escrowed assets.
+**3. Prove & Settle**  
+> A zero‑knowledge proof is generated to show that both traders are whitelisted and that commitments are consistent with the agreed trade. The settlement contract verifies the proof on‑chain and atomically swaps escrowed assets.
 
 ### What’s Public vs Private
 
@@ -56,31 +61,26 @@ This architecture keeps market data private while preserving verifiability and c
 
 ### Components
 
-**Registry contract**
+**Registry contract**  
+> Maintains the whitelist of eligible participants and the list of tradable RWA assets. The whitelist is represented as a Merkle tree root, which can be used inside ZK proofs. The contract also stores the verifier address and verification key reference used by settlement.
 
-Maintains the whitelist of eligible participants and the list of tradable RWA assets. The whitelist is represented as a Merkle tree root, which can be used inside ZK proofs.
+**Orderbook contract**  
+> Stores commitment‑only orders. Traders publish commitments and metadata such as asset address and side. No sensitive parameters are revealed. Matches are recorded so that settlement can be performed later.
 
-**Orderbook contract**
+**Settlement contract**  
+> Holds escrow balances, verifies ZK proofs, enforces anti‑replay via nullifiers, and performs atomic swaps of escrowed assets. It is the final arbiter of whether a trade can settle.
 
-Stores commitment‑only orders. Traders publish commitments and metadata such as asset address and side. No sensitive parameters are revealed.
+**Verifier contract**  
+> A Groth16 verifier using BN254 pairings, enabled by Stellar X‑Ray primitives. It parses the verification key, proof, and public signals and returns a boolean validity result.
 
-**Settlement contract**
+**Matching engine**  
+> An off‑chain service that receives full order details (encrypted in production), matches orders by price‑time priority, and orchestrates proof generation.
 
-Holds escrow balances, verifies ZK proofs, enforces anti‑replay via nullifiers, and performs atomic swaps of escrowed assets.
+**Prover**  
+> Generates ZK proofs that bind commitments, whitelist membership, and trade parameters together in a single settlement proof.
 
-**Verifier contract**
+![system overview](/blog-assets/systemoverview.png)
 
-A Groth16 verifier using BN254 pairings, enabled by Stellar X‑Ray primitives.
-
-**Matching engine**
-
-An off‑chain service that receives encrypted order details, matches orders by price‑time priority, and orchestrates proof generation.
-
-**Prover**
-
-Generates ZK proofs that bind commitments, whitelist membership, and trade parameters together.
-
-![alt text](image.png)
 ### End‑to‑End Flow
 
 1. **Whitelist & asset registration**
@@ -104,7 +104,25 @@ The prover constructs a ZK proof that:
 6. **On‑chain settlement**
 The settlement contract verifies the proof, checks the nullifier has not been used, and atomically swaps escrowed assets.
 
-![alt text](image-1.png)
+![data flow](/blog-assets/dataflow.png)
+
+## Stellar X‑Ray Cryptography (Protocol 25)
+
+Protocol 25 introduced native cryptographic primitives to Stellar that make ZK verification practical on‑chain. Duskpool relies on two key primitives.
+
+**BN254 elliptic curve operations (CAP‑0074)**
+
+These enable Groth16 verification directly in smart contracts via:
+> - `bn254_g1_add`
+> - `bn254_g1_mul`
+> - `bn254_multi_pairing_check`
+
+**Poseidon2 hash (CAP‑0075)**
+
+A ZK‑friendly hash over the BN254 scalar field, used both in circuits and on‑chain commitments.
+
+By using these primitives, Duskpool can verify proofs without external dependencies, which keeps settlement deterministic, cheap, and fully on‑chain.
+
 ## Mathematical Model
 
 We treat Poseidon and BN254 as primitives provided by Stellar’s X‑Ray cryptographic host functions. We do not derive them; we use them to enforce privacy and correctness.
@@ -158,7 +176,7 @@ $$
 Where:
 - `R` = whitelist root (public)
 - `leaf` = participant ID hash
-- `π` = Merkle path (private)
+- `\pi` = Merkle path (private)
 
 The proof shows that `leaf` is included in the tree that produced `R`.
 
@@ -214,47 +232,168 @@ $$
 \mathrm{Buyer}(\text{payment}) \ge p_{\text{exec}} \cdot q
 $$
 
+## ZK Circuit Design
+
+The settlement circuit proves that a trade is valid without revealing order details. It checks:
+> - Both parties are on the whitelist Merkle tree
+> - Commitments correspond to the claimed order parameters
+> - Trade terms (asset, quantity, price) are consistent
+> - A nullifier is computed to prevent replay
+
+### Circuit Public Inputs
+
+These values are visible on‑chain and are used by the verifier:
+> - `buyCommitment`
+> - `sellCommitment`
+> - `assetHash`
+> - `matchedQuantity`
+> - `executionPrice`
+> - `whitelistRoot`
+
+### Circuit Private Inputs
+
+These values are hidden inside the proof:
+> - Buyer and seller ID hashes
+> - Merkle paths for whitelist membership
+> - Order secrets and nonces
+
+### Circuit Capacity
+
+The whitelist Merkle tree depth is 20, supporting up to 1,048,576 participants. This allows large institutional pools without rebuilding the tree.
+
+### Circuit Output
+
+The circuit outputs a nullifier hash. The settlement contract rejects any transaction that reuses the same nullifier, preventing double‑settlement.
+
+## Smart Contract Responsibilities
+
+### Registry Contract
+
+The registry contract is the on‑chain source of truth for eligibility and assets. It:
+> - Stores the current whitelist Merkle root
+> - Manages participant registration and KYC expiry
+> - Manages registered RWA assets
+> - Stores the verifier address and eligibility verification key
+
+### Orderbook Contract
+
+The orderbook stores commitments and minimal metadata. It:
+> - Accepts commitment submissions
+> - Marks orders as matched or cancelled
+> - Ensures asset compatibility for matches
+> - Records match data for settlement
+
+### Settlement Contract
+
+The settlement contract is the execution layer. It:
+> - Holds escrowed assets
+> - Verifies ZK proofs for settlement
+> - Enforces nullifier uniqueness
+> - Swaps assets atomically if proof is valid
+
+### Verifier Contract
+
+The verifier contract is a generic BN254 Groth16 verifier. It:
+> - Parses the verification key and proof bytes
+> - Applies pairing checks using X‑Ray primitives
+> - Returns a boolean validity result
+
+![contract overview](/blog-assets/contractoverview.png)
+## Off‑Chain Matching Engine
+
+The matching engine runs off‑chain to find compatible orders while preserving privacy. It:
+> - Maintains an in‑memory orderbook per asset
+> - Matches orders when `buy price >= sell price`
+> - Uses midpoint pricing for execution
+> - Supports partial fills
+> - Rejects expired orders
+
+In production, order parameters are provided to the matching engine in encrypted form. Only commitments are posted on‑chain, so the public network never sees order details.
+
+## Proof Generation Pipeline
+
+The prover library is responsible for all cryptographic operations required to produce a settlement proof.
+
+### Order Commitment Generation
+
+A trader creates a commitment using Poseidon with the order parameters and a secret nonce. The output is the commitment hash and the secret data needed for later settlement.
+
+### Whitelist Tree Construction
+
+The prover builds a Merkle tree from participant ID hashes and produces Merkle proofs for any participant that will trade.
+
+### Settlement Proof Generation
+
+The settlement proof binds:
+> - The buy and sell commitments
+> - The whitelist membership proofs
+> - The execution price and quantity
+> - The nullifier
+
+The output is formatted for Soroban:
+> - `proofBytes` (A, B, C points serialized)
+> - `signalsBytes` (public signals serialized)
+
+These are passed directly to the settlement contract.
+
+## Operational Notes
+
+### Trusted Setup and Powers of Tau
+
+The Groth16 circuit requires a trusted setup. A Powers of Tau file is used to generate the proving key and verification key. A production setup uses a larger `ptau` file for the full circuit constraints.
+
+### Verification Key Export
+
+The verification key is exported into a hex byte format and deployed to the settlement contract. This ensures that the on‑chain verifier can validate proofs generated by the off‑chain prover.
+
+## Security & Trust Assumptions
+
+The security of the system relies on:
+> 1. Groth16 soundness on BN254
+> 2. Honest whitelist management by the registry admin
+> 3. Off‑chain matching engine cannot force settlement; it only proposes matches
+> 4. On‑chain verification rejects invalid proofs and replayed trades
+
+Even if the matching engine is compromised, it cannot settle invalid trades because the settlement contract enforces proof validity and nullifier uniqueness.
+
+## Gas Costs and Verification
+
+On Stellar (via Protocol 25), BN254 operations are native:
+
+| Operation | Gas Cost |
+|-----------|----------|
+| Poseidon Hash | ~2,000 |
+| Groth16 Verify | ~200,000 |
+| Full Match Verification | ~250,000 |
+
+This is significantly cheaper than Ethereum L1 verification, making ZK‑verified trading economically viable.
+
 ## What We Enable
 
-**Institutional privacy**
+**Institutional privacy**  
+> Traders can negotiate and execute without leaking order details to the public network.
 
-Traders can negotiate and execute without leaking order details to the public network.
+**Compliance by design**  
+> Whitelist membership is proven in zero‑knowledge; only eligible participants can settle.
 
-**Compliance by design**
+**RWA liquidity**  
+> Private execution enables larger block trades with reduced market impact.
 
-Whitelist membership is proven in zero‑knowledge; only eligible participants can settle.
+**Atomic on‑chain settlement**  
+> Escrowed assets move only after proof verification, reducing counterparty risk.
 
-**RWA liquidity**
+**Composable infrastructure**  
+> The system integrates with Stellar’s native assets and token contracts, enabling regulated issuers to list RWAs without building a new chain.
 
-Private execution enables larger block trades with reduced market impact.
+## Looking Forward
 
-**Atomic on‑chain settlement**
+We are actively exploring:
+> - **Recursive proofs** for batch settlement (PLONK‑based)
+> - **Threshold FHE** for encrypted order matching
+> - **Cross‑chain bridges** with ZK state verification
 
-Escrowed assets move only after proof verification, reducing counterparty risk.
-
-**Composable infrastructure**
-
-The system integrates with Stellar’s native assets and token contracts, enabling regulated issuers to list RWAs without building a new chain.
-
-## Trust & Security Assumptions
-
-- Groth16 soundness on BN254.
-- Honest whitelist management by the registry admin.
-- Off‑chain matching engine cannot force settlement; it only proposes matches.
-- On‑chain verification rejects invalid proofs and replayed trades.
-
-## Roadmap (Illustrative)
-
-- **Phase 1:** Testnet contracts, circuits, and prover integration.
-- **Phase 2:** Private pilot with whitelisted institutions.
-- **Phase 3:** Mainnet deployment and institutional onboarding.
-
-## Glossary
-
-- **RWA:** Real‑world asset such as bonds, treasuries, or fund shares.
-- **Commitment:** A hash that binds a value without revealing it.
-- **Merkle root:** Compact representation of a whitelist tree.
-- **Nullifier:** Unique hash preventing replay of a settlement.
-- **Groth16:** Efficient zero‑knowledge proof system.
+The goal is a trading system where privacy is the default, not an afterthought.
 
 ---
+
+> For the complete circuit implementations, see our [GitHub repository](https://github.com/duskpool/circuits).
