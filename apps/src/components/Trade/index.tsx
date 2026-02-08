@@ -94,7 +94,7 @@ const Trade: React.FC = () => {
 
   // Chart state
   const [timeframe, setTimeframe] = useState('1H');
-  const [chartType, setChartType] = useState<ChartType>('candle');
+  const [chartType, setChartType] = useState<ChartType>('area');
   const [chartView, setChartView] = useState<ChartView>('price');
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [historyTab, setHistoryTab] = useState<HistoryTab>('open');
@@ -910,7 +910,7 @@ const Trade: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col pt-2 px-2 md:px-6 pb-2 animate-fade-in-up overflow-hidden">
+    <div className="w-full h-full flex flex-col pt-2 px-2 md:px-6 pb-2 animate-fade-in-up">
       {/* Terminal Header */}
       <TradeHeader
         assets={assets}
