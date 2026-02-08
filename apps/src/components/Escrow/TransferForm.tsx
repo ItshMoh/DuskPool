@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDownUp, Shield, Lock, Unlock, RefreshCw } from 'lucide-react';
+import { ArrowDownUp, Shield, Lock, Unlock, RefreshCw, Droplets } from 'lucide-react';
 import { Button, IconButton, ErrorAlert, SuccessAlert, WarningAlert } from '../ui';
 import { AssetBalance } from './types';
 import { AssetSelector } from './AssetSelector';
@@ -26,6 +26,11 @@ interface TransferFormProps {
   onSelectAsset: (tokenAddress: string) => void;
   onSubmit: () => void;
   onRefresh: () => void;
+  faucetLoading: boolean;
+  faucetStatus: 'idle' | 'success' | 'error';
+  faucetError: string | null;
+  onFaucet: () => void;
+  paymentAssetSymbol: string;
 }
 
 export const TransferForm: React.FC<TransferFormProps> = ({
@@ -49,7 +54,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({
   onSelectAsset,
   onSubmit,
   onRefresh,
+  faucetLoading,
+  faucetStatus,
+  faucetError,
+  onFaucet,
+  paymentAssetSymbol,
 }) => {
+  const showFaucet = currentAsset && currentAsset.symbol !== paymentAssetSymbol;
+
   return (
     <div className="relative">
       {/* Accent Border */}
@@ -94,6 +106,32 @@ export const TransferForm: React.FC<TransferFormProps> = ({
               onSelectAsset={onSelectAsset}
             />
           </div>
+
+          {/* Faucet Button */}
+          {showFaucet && (
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onFaucet}
+                isLoading={faucetLoading}
+                disabled={faucetLoading}
+              >
+                <Droplets className="w-3.5 h-3.5" />
+                Get Test {currentAsset?.symbol}
+              </Button>
+              {faucetStatus === 'success' && (
+                <SuccessAlert>
+                  Received 1000 test {currentAsset?.symbol}!
+                </SuccessAlert>
+              )}
+              {faucetStatus === 'error' && (
+                <ErrorAlert>
+                  {faucetError || 'Failed to request test tokens.'}
+                </ErrorAlert>
+              )}
+            </div>
+          )}
 
           {/* Amount Input */}
           <AmountInput
