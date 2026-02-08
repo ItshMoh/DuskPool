@@ -141,7 +141,7 @@ const Header: React.FC<HeaderProps> = ({
       {isHomePage && !isConnected && (
         <div className="hidden lg:flex items-center justify-center gap-12 py-3">
           {publicNavItems.map((item) => {
-            if ('route' in item) {
+            if ('route' in item && item.route) {
               return (
                 <Link
                   key={item.route}
@@ -153,11 +153,12 @@ const Header: React.FC<HeaderProps> = ({
               );
             }
 
+            if (!item.id) return null;
             return (
               <a
                 key={item.id}
                 href={`#${item.id}`}
-                onClick={(e) => handleScrollToSection(item.id, e)}
+                onClick={(e) => handleScrollToSection(item.id!, e)}
                 className="text-[11px] font-medium tracking-[0.2em] transition-all duration-300 text-white/40 hover:text-white/70"
               >
                 {item.label}
