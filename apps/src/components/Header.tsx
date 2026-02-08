@@ -30,7 +30,8 @@ const Header: React.FC<HeaderProps> = ({
   const publicNavItems = [
     { label: 'MARKETS', id: 'markets' },
     { label: 'PROTOCOL', id: 'protocol' },
-    { label: 'FAQ', id: 'faq' }
+    { label: 'FAQ', id: 'faq' },
+    { label: 'BLOG', route: '/blog' }
   ];
 
   const isHomePage = currentPath === '/';
@@ -139,16 +140,30 @@ const Header: React.FC<HeaderProps> = ({
       {/* Navigation Row - Only visible on home page */}
       {isHomePage && !isConnected && (
         <div className="hidden lg:flex items-center justify-center gap-12 py-3">
-          {publicNavItems.map((item) => (
-            <a
-              key={item.id}
-              href={`#${item.id}`}
-              onClick={(e) => handleScrollToSection(item.id, e)}
-              className="text-[11px] font-medium tracking-[0.2em] transition-all duration-300 text-white/40 hover:text-white/70"
-            >
-              {item.label}
-            </a>
-          ))}
+          {publicNavItems.map((item) => {
+            if ('route' in item) {
+              return (
+                <Link
+                  key={item.route}
+                  to={item.route}
+                  className="text-[11px] font-medium tracking-[0.2em] transition-all duration-300 text-white/40 hover:text-white/70"
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+
+            return (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                onClick={(e) => handleScrollToSection(item.id, e)}
+                className="text-[11px] font-medium tracking-[0.2em] transition-all duration-300 text-white/40 hover:text-white/70"
+              >
+                {item.label}
+              </a>
+            );
+          })}
         </div>
       )}
 
