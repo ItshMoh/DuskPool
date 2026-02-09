@@ -5,6 +5,7 @@ excerpt: "How private execution with on-chain settlement protects institutional 
 author: "Duskpool Team"
 readTime: "5 min read"
 category: "Insights"
+thumbnail: "/blog-assets/duskNstellarnew.png"
 tags: ["privacy", "rwa", "stellar", "market-structure"]
 ---
 
@@ -43,7 +44,7 @@ We also like that the Stellar Development Foundation joined the **ERC-3643 Assoc
 
 ## The Future of RWAs
 
-![assets-to-token](/blog-assests/realtotoken.png)
+![assets-to-token](/blog-assets/realtotoken.png)
 The future of RWAs isn't just tokenization—it's **market structure**.
 
 DuskPool is building a privacy market layer so institutions can trade at size without leaking intent, while still settling transparently on-chain. That balance is what real-world adoption needs—and it's why we chose Stellar.

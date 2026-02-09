@@ -1,9 +1,10 @@
 ---
-title: "Duskpool Whitepaper: RWA Dark Pool on Stellar"
+title: "Duskpool"
 excerpt: "A full-stack technical overview of Duskpool’s private RWA trading architecture on Stellar, from commitments to on-chain ZK settlement."
 author: "Duskpool Team"
 readTime: "8 min read"
 category: "Whitepaper"
+thumbnail: "/blog-assets/duskNstellarnew.png"
 tags: ["whitepaper", "stellar", "rwa", "privacy", "zk-proofs"]
 ---
 
@@ -396,4 +397,4 @@ The goal is a trading system where privacy is the default, not an afterthought.
 
 ---
 
-> For the complete circuit implementations, see our [GitHub repository](https://github.com/duskpool/circuits).
+> For the complete circuit implementations, see our [GitHub repository](https://github.com/DuskPool/DuskPool).
